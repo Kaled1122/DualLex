@@ -52,7 +52,6 @@ def lookup():
         input=f"Define the word: {word}",
         instructions=SYSTEM_PROMPT,
         tools=[],
-        response_format={"type": "json_schema", "json_schema": JSON_SCHEMA}
     )
 
     # Extract JSON (correct for new Responses API)
