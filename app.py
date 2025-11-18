@@ -4,9 +4,7 @@ from openai import OpenAI
 import os
 
 app = Flask(__name__)
-CORS(app)
 CORS(app, resources={r"/*": {"origins": "*"}})
-
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
@@ -57,7 +55,10 @@ def lookup():
         response_format={"type": "json_schema", "json_schema": JSON_SCHEMA}
     )
 
-    return jsonify(response.output_json)
+    # FIX: extract JSON from response (correct for the new API)
+    result_json = response.output[0].content[0].json
+
+    return jsonify(result_json)
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
