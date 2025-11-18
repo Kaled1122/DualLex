@@ -1,4 +1,4 @@
 Flask
 flask-cors
-openai
+openai >= 1.51.0
 requests
