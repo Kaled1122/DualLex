@@ -9,5 +9,8 @@
   "dependencies": {
     "@openai/agents": "latest",
     "zod": "^3.22.4"
+  },
+  "devDependencies": {
+    "@vercel/node": "3.0.0"
   }
 }
