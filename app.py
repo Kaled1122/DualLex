@@ -1,59 +1,67 @@
+import os
 from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
-import os
-import json
+from dotenv import load_dotenv
+
+load_dotenv()
 
 app = Flask(__name__)
 CORS(app)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+AGENT_ID = os.getenv("AGENT_ID")
 
-AGENT_SYSTEM = """
-You are DualLex, a bilingual English–Arabic dictionary agent.
-
-Capabilities:
-- Use the web browser tool to search authoritative dictionary sources.
-- Analyze usage in classical, formal, informal, and colloquial Arabic.
-- Build a JSON dictionary entry.
-- Show your reasoning steps as you work (the client will stream them).
-
-Your final output MUST be JSON:
-{
-  "classical": "",
-  "formal": "",
-  "informal": "",
-  "colloquial": "",
-  "examples": {
-    "english": [],
-    "arabic": []
-  }
-}
+SYSTEM_PROMPT = """
+You are a dual-language dictionary agent.
+Return meanings ONLY in structured JSON.
 """
 
 @app.route("/")
 def home():
-    return "DualLex Agent running on Render."
+    return "DualLex Agent Backend is Running."
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
     data = request.get_json()
-    word = data.get("word", "")
+    word = data.get("word", "").strip()
+
+    if not word:
+        return {"error": "No word provided"}, 400
 
     def stream():
-        stream = client.agents.runs.create_steps_stream(
-            model="gpt-4.1",
-            instructions=AGENT_SYSTEM,
-            input=f"Lookup the word: {word}. Produce JSON output.",
-            tools=[{"type": "web_browser"}]  # REAL BROWSER TOOL
+        yield "event: status\ndata: Agent starting...\n\n"
+
+        run = client.agents.runs.create(
+            agent_id=AGENT_ID,
+            input=f"Define the word: {word}"
         )
 
-        for event in stream:
-            # Send intermediate steps to frontend
-            yield f"data: {json.dumps(event.to_dict())}\n\n"
+        step_stream = client.agents.runs.create_steps_stream(
+            agent_id=AGENT_ID,
+            run_id=run.id
+        )
+
+        final_json = None
+
+        for event in step_stream:
+            ### Status updates
+            if hasattr(event, "event_type"):
+                yield f"event: status\ndata: {event.event_type}\n\n"
+
+            if hasattr(event, "output_text") and event.output_text:
+                yield f"event: status\ndata: {event.output_text}\n\n"
+
+            ### Final JSON from agent
+            if hasattr(event, "output") and event.output:
+                final_json = event.output
+
+        if final_json:
+            yield f"event: final\ndata: {final_json}\n\n"
+
+        yield "event: done\ndata: complete\n\n"
 
     return Response(stream(), mimetype="text/event-stream")
 
-
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
