@@ -2,7 +2,7 @@
   "version": 2,
   "functions": {
     "api/define.ts": {
-      "runtime": "vercel-nodejs18"
+      "runtime": "@vercel/node@3.0.0"
     }
   },
   "routes": [
