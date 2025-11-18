@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from openai import OpenAI
 import os
@@ -29,19 +29,15 @@ JSON_SCHEMA = {
 
 SYSTEM_PROMPT = """
 You are a Dual-Language Dictionary Agent.
-
 Return meanings ONLY as structured JSON.
 No sentences outside JSON.
 No commentary.
 No free text.
-
-Definition rules:
-- Search classical, formal, informal, and colloquial meanings
-- Use browser search for validation
-- Provide concise definitions in Arabic and English
-- Provide two example lists: English examples and Arabic examples
 """
 
+@app.route("/")
+def home():
+    return "DualLex backend is running."
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
@@ -51,17 +47,15 @@ def lookup():
     if not word:
         return jsonify({"error": "No word provided."})
 
-    # Call Agent
     response = client.responses.create(
         model="gpt-4.1",
         input=f"Define the word: {word}",
         system=SYSTEM_PROMPT,
-        tools=[{"type": "web_browser"}],
+        tools=[],
         response_format={"type": "json_schema", "json_schema": JSON_SCHEMA}
     )
 
-    # Agent produces valid JSON automatically
     return jsonify(response.output_json)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
