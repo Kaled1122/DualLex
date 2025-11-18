@@ -1,0 +1,8 @@
+{
+  "version": 3,
+  "functions": {
+    "api/define.ts": {
+      "runtime": "nodejs20.x"
+    }
+  }
+}
