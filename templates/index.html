@@ -83,13 +83,20 @@
     </div>
 
 <script>
+const BACKEND_URL = "https://duallex-production.up.railway.app";
+
 function searchWord() {
     const word = document.getElementById("wordInput").value;
     const output = document.getElementById("output");
 
+    if (!word.trim()) {
+        output.textContent = "Please enter a word.";
+        return;
+    }
+
     output.textContent = "Searching...";
 
-    fetch("/lookup", {
+    fetch(`${BACKEND_URL}/lookup`, {
         method: "POST",
         headers: {"Content-Type": "application/json"},
         body: JSON.stringify({ word: word })
@@ -99,7 +106,7 @@ function searchWord() {
         output.textContent = JSON.stringify(data, null, 2);
     })
     .catch(() => {
-        output.textContent = "Error. Please try again.";
+        output.textContent = "Error contacting backend.";
     });
 }
 </script>
