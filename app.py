@@ -1,51 +1,59 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, Response
 from flask_cors import CORS
 from openai import OpenAI
 import os
 import json
 
 app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": "*"}})
+CORS(app)
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
-SYSTEM_PROMPT = """
-You are a Dual-Language Dictionary Agent.
-Return meanings ONLY as valid JSON.
+AGENT_SYSTEM = """
+You are DualLex, a bilingual English–Arabic dictionary agent.
+
+Capabilities:
+- Use the web browser tool to search authoritative dictionary sources.
+- Analyze usage in classical, formal, informal, and colloquial Arabic.
+- Build a JSON dictionary entry.
+- Show your reasoning steps as you work (the client will stream them).
+
+Your final output MUST be JSON:
+{
+  "classical": "",
+  "formal": "",
+  "informal": "",
+  "colloquial": "",
+  "examples": {
+    "english": [],
+    "arabic": []
+  }
+}
 """
 
 @app.route("/")
 def home():
-    return "DualLex backend is running."
+    return "DualLex Agent running on Render."
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
     data = request.get_json()
-    word = data.get("word", "").strip()
+    word = data.get("word", "")
 
-    if not word:
-        return jsonify({"error": "No word provided."})
+    def stream():
+        stream = client.agents.runs.create_steps_stream(
+            model="gpt-4.1",
+            instructions=AGENT_SYSTEM,
+            input=f"Lookup the word: {word}. Produce JSON output.",
+            tools=[{"type": "web_browser"}]  # REAL BROWSER TOOL
+        )
 
-    response = client.responses.create(
-        model="gpt-4.1",
-        instructions=SYSTEM_PROMPT,
-        input=f"Define the word: {word}",
-        tools=[]
-    )
+        for event in stream:
+            # Send intermediate steps to frontend
+            yield f"data: {json.dumps(event.to_dict())}\n\n"
 
-    # FIX: output_text() MUST have parentheses
-    raw = response.output_text()
+    return Response(stream(), mimetype="text/event-stream")
 
-    # try converting to JSON
-    try:
-        result_json = json.loads(raw)
-        return jsonify(result_json)
-    except Exception as e:
-        return jsonify({
-            "error": "Model did not return valid JSON",
-            "raw_output": raw,
-            "exception": str(e)
-        })
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=5000)
