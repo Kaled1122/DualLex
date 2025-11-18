@@ -3,9 +3,10 @@ services:
     name: duallex-backend
     env: docker
     plan: standard
-    branch: main
     buildCommand: ""
     startCommand: ""
     envVars:
       - key: OPENAI_API_KEY
+        sync: false
+      - key: AGENT_ID
         sync: false
