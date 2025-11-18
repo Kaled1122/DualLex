@@ -1,8 +1,12 @@
 {
-  "version": 3,
+  "version": 2,
   "functions": {
     "api/define.ts": {
       "runtime": "nodejs20.x"
     }
-  }
+  },
+  "routes": [
+    { "src": "/api/define", "dest": "/api/define.ts" },
+    { "src": "/(.*)", "dest": "/public/index.html" }
+  ]
 }
