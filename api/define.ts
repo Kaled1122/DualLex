@@ -1,17 +1,17 @@
-import { webSearchTool, Agent, Runner, withTrace } from "@openai/agents";
+import { webSearchTool, Agent, Runner } from "@openai/agents";
 import { z } from "zod";
 
 export const config = {
   runtime: "edge"
 };
 
-// Web search tool
+// Web Search Tool
 const webSearch = webSearchTool({
   userLocation: { type: "approximate" },
   searchContextSize: "medium"
 });
 
-// Output schema
+// JSON Schema
 const WordstyleDictionarySchema = z.object({
   classical: z.string(),
   formal: z.string(),
@@ -24,43 +24,147 @@ const WordstyleDictionarySchema = z.object({
   sources: z.array(z.string())
 });
 
-// Agent definition
-const wordstyleDictionary = new Agent({
+// Agent with full prompt (JACLASS)
+const agent = new Agent({
   name: "WordStyle Dictionary",
-  instructions: `Your entire prompt goes here EXACTLY`,
+
+  instructions: `
+You are a Multistyle Bilingual Dictionary Agent.
+
+Your job is to:
+1. Use the Web Search tool to retrieve the PRIMARY dictionary definition of the given word in English and Arabic.
+2. Clean and extract one pure dictionary-style meaning in each language.
+3. Rewrite the meaning into eight styles (four English, four Arabic).
+4. Return output that strictly matches the JSON schema provided.
+
+────────────────────────────────────────
+WHERE TO SEARCH — ENGLISH DICTIONARIES
+────────────────────────────────────────
+
+Use Web Search with queries such as:
+"<word> definition site:oxfordlearnersdictionaries.com OR site:dictionary.cambridge.org OR site:merriam-webster.com OR site:dictionary.com OR site:en.wiktionary.org"
+
+Allowed English dictionary domains:
+- oxfordlearnersdictionaries.com
+- dictionary.cambridge.org
+- merriam-webster.com
+- dictionary.com
+- en.wiktionary.org
+
+────────────────────────────────────────
+WHERE TO SEARCH — ARABIC DICTIONARIES
+────────────────────────────────────────
+
+Use Web Search with queries such as:
+"<word> معنى"
+"تعريف <word>"
+"<word> قاموس"
+site:almaany.com OR site:ar.wiktionary.org OR site:qamous.org
+
+Allowed Arabic dictionary domains:
+- almaany.com
+- ar.wiktionary.org
+- qamous.org
+- أي مصدر موثوق يحتوي على كلمة: قاموس / معجم
+
+────────────────────────────────────────
+EXTRACTION & CLEANING RULES
+────────────────────────────────────────
+
+When processing Web Search results:
+- Extract ONLY the core dictionary definition.
+- REMOVE:
+  • website names
+  • domain text ("cambridge.org")
+  • preview description / SEO text
+  • duplicates
+  • anything that is not the actual definition
+- Keep ONE clean sentence for English.
+- Keep ONE clean sentence for Arabic.
+
+If only English results appear:
+- Arabic fields = "".
+
+If only Arabic results appear:
+- English fields = "".
+
+If neither appear:
+- All fields = "".
+
+────────────────────────────────────────
+STYLE REWRITING RULES
+────────────────────────────────────────
+
+Rewrite the meaning into:
+
+ENGLISH:
+- classical → academic / textbook-style
+- formal → professional and polished
+- informal → simple and conversational
+- colloquial → everyday casual
+
+ARABIC:
+- arabic_classical → عربي فصيح
+- arabic_formal → تعبير رسمي واضح
+- arabic_informal → أسلوب مبسّط وسهل
+- arabic_colloquial → لهجة عامية طبيعية
+
+Each field MUST be ONE clean sentence.
+
+────────────────────────────────────────
+JSON OUTPUT RULES
+────────────────────────────────────────
+
+Your output MUST match this JSON schema:
+
+{
+  "classical": "",
+  "formal": "",
+  "informal": "",
+  "colloquial": "",
+  "arabic_classical": "",
+  "arabic_formal": "",
+  "arabic_informal": "",
+  "arabic_colloquial": "",
+  "sources": []
+}
+
+Rules:
+- NO extra text.
+- NO commentary.
+- NO newlines.
+- NO explanations.
+- "sources" MUST contain ONLY valid dictionary URLs used.
+- NEVER invent URLs.
+- NEVER put URLs inside text fields.
+`,
+
   model: "gpt-4.1",
-  tools: {
-    webSearch
-  },
-  outputType: WordstyleDictionarySchema,
-  modelSettings: {
-    temperature: 0.3,
-    topP: 0.58,
-    maxTokens: 3000
-  }
+  tools: { webSearch },
+  outputType: WordstyleDictionarySchema
 });
 
-// API endpoint
-export default async (req: Request) => {
+// API Handler (Edge Function)
+export default async function handler(req: Request) {
   try {
     const { word } = await req.json();
 
     const runner = new Runner();
-    const result = await withTrace("dictionary", async () => {
-      return await runner.run(wordstyleDictionary, [
-        { role: "user", content: [{ type: "input_text", text: word }] }
-      ]);
-    });
+    const result = await runner.run(agent, [
+      {
+        role: "user",
+        content: [{ type: "input_text", text: word }]
+      }
+    ]);
 
     return new Response(JSON.stringify(result.finalOutput), {
-      status: 200,
       headers: { "Content-Type": "application/json" }
     });
 
-  } catch (e: any) {
-    return new Response(JSON.stringify({ error: e.message }), {
+  } catch (err: any) {
+    return new Response(JSON.stringify({ error: err.message }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
   }
-};
+}
