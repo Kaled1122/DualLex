@@ -50,7 +50,7 @@ def lookup():
     response = client.responses.create(
         model="gpt-4.1",
         input=f"Define the word: {word}",
-        instructions=system=SYSTEM_PROMPT,
+        instructions=SYSTEM_PROMPT,
         tools=[],
         response_format={"type": "json_schema", "json_schema": JSON_SCHEMA}
     )
