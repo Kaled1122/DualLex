@@ -55,10 +55,10 @@ def lookup():
         response_format={"type": "json_schema", "json_schema": JSON_SCHEMA}
     )
 
-    # FIX: extract JSON from response (correct for the new API)
+    # Extract JSON (correct for new Responses API)
     result_json = response.output[0].content[0].json
 
     return jsonify(result_json)
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 5000)))
+    app.run(host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
