@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Dual-Language Dictionary Agent</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            margin: 0;
+            background: #f7f7f7;
+            padding: 40px;
+            color: #222;
+        }
+
+        .container {
+            max-width: 720px;
+            margin: auto;
+            background: white;
+            padding: 40px;
+            border-radius: 18px;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.05);
+        }
+
+        h1 {
+            font-weight: 600;
+            text-align: center;
+            letter-spacing: -0.5px;
+            margin-bottom: 40px;
+        }
+
+        input {
+            width: 100%;
+            padding: 14px;
+            font-size: 18px;
+            border: 1px solid #dcdcdc;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            transition: border 0.2s;
+        }
+
+        input:focus {
+            outline: none;
+            border-color: #007aff;
+        }
+
+        button {
+            width: 100%;
+            padding: 14px;
+            font-size: 17px;
+            background: #007aff;
+            color: white;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background: #0066d6;
+        }
+
+        pre {
+            background: #f2f2f2;
+            padding: 20px;
+            border-radius: 12px;
+            white-space: pre-wrap;
+            margin-top: 30px;
+            font-size: 15px;
+            line-height: 1.5;
+            font-family: "SF Mono", "Menlo", monospace;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Dual-Language Dictionary Agent</h1>
+
+        <input id="wordInput" type="text" placeholder="Enter a word">
+        <button onclick="searchWord()">Search</button>
+
+        <pre id="output"></pre>
+    </div>
+
+<script>
+function searchWord() {
+    const word = document.getElementById("wordInput").value;
+    const output = document.getElementById("output");
+
+    output.textContent = "Searching...";
+
+    fetch("/lookup", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({ word: word })
+    })
+    .then(res => res.json())
+    .then(data => {
+        output.textContent = JSON.stringify(data, null, 2);
+    })
+    .catch(() => {
+        output.textContent = "Error. Please try again.";
+    });
+}
+</script>
+
+</body>
+</html>
