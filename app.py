@@ -42,9 +42,6 @@ Definition rules:
 - Provide two example lists: English examples and Arabic examples
 """
 
-@app.route("/")
-def index():
-    return render_template("index.html")
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
