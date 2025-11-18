@@ -12,20 +12,14 @@ CORS(app)
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 AGENT_ID = os.getenv("AGENT_ID")
 
-SYSTEM_PROMPT = """
-You are a dual-language dictionary agent.
-Return meanings ONLY in structured JSON.
-"""
-
 @app.route("/")
 def home():
-    return "DualLex Agent Backend is Running."
+    return "DualLex Agent Running on Vercel (Docker Mode)."
 
 @app.route("/lookup", methods=["POST"])
 def lookup():
     data = request.get_json()
     word = data.get("word", "").strip()
-
     if not word:
         return {"error": "No word provided"}, 400
 
@@ -37,24 +31,22 @@ def lookup():
             input=f"Define the word: {word}"
         )
 
-        step_stream = client.agents.runs.create_steps_stream(
+        steps = client.agents.runs.create_steps_stream(
             agent_id=AGENT_ID,
             run_id=run.id
         )
 
         final_json = None
 
-        for event in step_stream:
-            ### Status updates
-            if hasattr(event, "event_type"):
-                yield f"event: status\ndata: {event.event_type}\n\n"
+        for ev in steps:
+            if hasattr(ev, "event_type"):
+                yield f"event: status\ndata: {ev.event_type}\n\n"
 
-            if hasattr(event, "output_text") and event.output_text:
-                yield f"event: status\ndata: {event.output_text}\n\n"
+            if hasattr(ev, "output_text") and ev.output_text:
+                yield f"event: status\ndata: {ev.output_text}\n\n"
 
-            ### Final JSON from agent
-            if hasattr(event, "output") and event.output:
-                final_json = event.output
+            if hasattr(ev, "output") and ev.output:
+                final_json = ev.output
 
         if final_json:
             yield f"event: final\ndata: {final_json}\n\n"
@@ -64,4 +56,4 @@ def lookup():
     return Response(stream(), mimetype="text/event-stream")
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    app.run(host="0.0.0.0", port=8000)
