@@ -1,5 +1,0 @@
-flask
-flask-cors
-openai>=1.56.0
-python-dotenv
-playwright==1.44.0
