@@ -1,113 +1,150 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Dual-Language Dictionary Agent</title>
-    <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            background: #f7f7f7;
-            padding: 40px;
-            color: #222;
-        }
+<meta charset="UTF-8">
+<title>DualLex Agent</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
 
-        .container {
-            max-width: 720px;
-            margin: auto;
-            background: white;
-            padding: 40px;
-            border-radius: 18px;
-            box-shadow: 0 6px 20px rgba(0,0,0,0.05);
-        }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        margin: 0;
+        padding: 40px;
+        background: #f5f5f7;
+        color: #111;
+    }
 
-        h1 {
-            font-weight: 600;
-            text-align: center;
-            letter-spacing: -0.5px;
-            margin-bottom: 40px;
-        }
+    #container {
+        max-width: 700px;
+        margin: auto;
+    }
 
-        input {
-            width: 100%;
-            padding: 14px;
-            font-size: 18px;
-            border: 1px solid #dcdcdc;
-            border-radius: 12px;
-            margin-bottom: 20px;
-            transition: border 0.2s;
-        }
+    h1 {
+        font-weight: 600;
+        margin-bottom: 25px;
+    }
 
-        input:focus {
-            outline: none;
-            border-color: #007aff;
-        }
+    input {
+        width: 100%;
+        padding: 14px;
+        font-size: 18px;
+        border-radius: 10px;
+        border: 1px solid #ccc;
+        margin-bottom: 15px;
+        box-sizing: border-box;
+    }
 
-        button {
-            width: 100%;
-            padding: 14px;
-            font-size: 17px;
-            background: #007aff;
-            color: white;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+    button {
+        padding: 12px 22px;
+        font-size: 16px;
+        border: none;
+        border-radius: 8px;
+        background: #0071e3;
+        color: #fff;
+        cursor: pointer;
+        margin-bottom: 30px;
+    }
 
-        button:hover {
-            background: #0066d6;
-        }
+    button:hover {
+        background: #005bb5;
+    }
 
-        pre {
-            background: #f2f2f2;
-            padding: 20px;
-            border-radius: 12px;
-            white-space: pre-wrap;
-            margin-top: 30px;
-            font-size: 15px;
-            line-height: 1.5;
-            font-family: "SF Mono", "Menlo", monospace;
-        }
-    </style>
+    .card {
+        background: white;
+        padding: 20px;
+        border-radius: 14px;
+        margin-bottom: 30px;
+        font-family: Menlo, monospace;
+        white-space: pre-wrap;
+        border: 1px solid #e0e0e0;
+    }
+
+    .title {
+        font-size: 20px;
+        margin-bottom: 10px;
+        font-weight: 600;
+    }
+
+</style>
 </head>
-
 <body>
-    <div class="container">
-        <h1>Dual-Language Dictionary Agent</h1>
 
-        <input id="wordInput" type="text" placeholder="Enter a word">
-        <button onclick="searchWord()">Search</button>
+<div id="container">
 
-        <pre id="output"></pre>
-    </div>
+<h1>DualLex Agent</h1>
+
+<input id="word" placeholder="Enter a word (English or Arabic)">
+<button onclick="lookup()">Lookup</button>
+
+<div class="title">Agent Status</div>
+<div id="status" class="card">Waiting…</div>
+
+<div class="title">Final JSON Output</div>
+<div id="json-output" class="card">{}</div>
+
+</div>
 
 <script>
-const BACKEND_URL = "https://duallex-production.up.railway.app";
+const BACKEND = "https://YOUR-RENDER-URL.onrender.com";  // <--- CHANGE THIS
 
-function searchWord() {
-    const word = document.getElementById("wordInput").value;
-    const output = document.getElementById("output");
+async function lookup() {
+    const word = document.getElementById("word").value.trim();
+    const statusBox = document.getElementById("status");
+    const jsonBox = document.getElementById("json-output");
 
-    if (!word.trim()) {
-        output.textContent = "Please enter a word.";
+    if (!word) {
+        alert("Enter a word first.");
         return;
     }
 
-    output.textContent = "Searching...";
+    statusBox.textContent = "Starting agent...\n";
+    jsonBox.textContent = "{}";
 
-    fetch(`${BACKEND_URL}/lookup`, {
+    // POST request but with streaming response body
+    const response = await fetch(BACKEND + "/lookup", {
         method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({ word: word })
-    })
-    .then(res => res.json())
-    .then(data => {
-        output.textContent = JSON.stringify(data, null, 2);
-    })
-    .catch(() => {
-        output.textContent = "Error contacting backend.";
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ word })
     });
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = "";
+
+    while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buffer += decoder.decode(value, { stream: true });
+
+        const chunks = buffer.split("\n\n");
+
+        for (let i = 0; i < chunks.length - 1; i++) {
+            const chunk = chunks[i];
+
+            if (!chunk.startsWith("data: ")) continue;
+
+            const jsonString = chunk.replace("data: ", "").trim();
+
+            try {
+                const evt = JSON.parse(jsonString);
+
+                // Display the entire event as a JSON block
+                statusBox.textContent +=
+                    JSON.stringify(evt, null, 2) + "\n\n";
+
+                // If this is the final agent JSON output
+                if (evt.event === "final_output" && evt.output) {
+                    jsonBox.textContent =
+                        JSON.stringify(evt.output, null, 2);
+                }
+            } catch (e) {
+                // ignore partial chunks
+            }
+        }
+
+        buffer = chunks[chunks.length - 1];
+    }
 }
 </script>
 
